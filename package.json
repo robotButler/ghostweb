@@ -1,13 +1,14 @@
 {
-  "name": "web-tui",
+  "name": "webghost",
   "module": "index.ts",
   "type": "module",
   "private": true,
   "bin": {
-    "webify": "./index.ts"
+    "webghost": "./index.ts"
   },
   "scripts": {
-    "webify": "bun run index.ts"
+    "webghost": "bun run index.ts",
+    "test": "bun test"
   },
   "devDependencies": {
     "@types/bun": "latest"

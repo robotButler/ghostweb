@@ -25,7 +25,7 @@ const outputDecoder = new TextDecoder();
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROXY_SOURCE = `#!/usr/bin/env python3
 \"\"\"
-Lightweight PTY proxy used by the webify CLI.
+Lightweight PTY proxy used by the webghost CLI.
 
 The script spawns a command inside a pseudo-terminal and proxies
 stdin/stdout over newline-delimited JSON messages. Payloads that
@@ -136,11 +136,11 @@ if __name__ == \"__main__\":
 function usage(code: number = 1): never {
   console.log(
     [
-      "Usage: webify [--port <port>] [--no-open] -- <command> [args...]",
+      "Usage: webghost [--port <port>] [--no-open] -- <command> [args...]",
       "",
       "Examples:",
-      "  webify -- bash",
-      "  webify --port 8081 -- claude --dangerously-skip-permissions",
+      "  webghost -- bash",
+      "  webghost --port 8081 -- claude --dangerously-skip-permissions",
     ].join("\n"),
   );
   process.exit(code);
@@ -186,7 +186,7 @@ function parseArgs(argv: string[]): CliOptions {
       }
       default: {
         // Treat the first unknown token as the start of the command, so
-        // `webify cmd args...` works without requiring `--`.
+        // `webghost cmd args...` works without requiring `--`.
         command.push(...argv.slice(i));
         i = argv.length;
         break;
@@ -313,7 +313,7 @@ function buildClientHtml(title: string): string {
     <main>
       <header>
         <div class="dot" aria-hidden="true"></div>
-        <div class="title">webify · ${title}</div>
+        <div class="title">webghost · ${title}</div>
         <div id="status"><span class="pill">starting</span></div>
       </header>
       <div id="terminal"></div>
@@ -446,7 +446,7 @@ function ensureProxyScript(): string {
   }
 
   const cacheBase = Bun.env.XDG_CACHE_HOME ?? (Bun.env.HOME ? join(Bun.env.HOME, ".cache") : "/tmp");
-  const targetDir = join(cacheBase, "webify");
+  const targetDir = join(cacheBase, "webghost");
   try {
     mkdirSync(targetDir, { recursive: true });
   } catch {
@@ -459,8 +459,15 @@ function ensureProxyScript(): string {
     }
     return targetPath;
   } catch {
-    // If cache write fails, fall back to project path which may still work in dev
-    return projectPath;
+    // fall through to tmp fallback
+  }
+
+  const tmpPath = join("/tmp", "webghost-pty-proxy.py");
+  try {
+    writeFileSync(tmpPath, PROXY_SOURCE, "utf8");
+    return tmpPath;
+  } catch (error) {
+    throw new Error(`Failed to create PTY proxy script: ${String(error)}`);
   }
 }
 

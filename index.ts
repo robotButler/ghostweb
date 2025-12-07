@@ -248,37 +248,59 @@ fitAddon.fit();
 term.focus();
 
 const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
-const ws = new WebSocket(wsProtocol + '://' + location.host + '/ws');
-ws.binaryType = 'arraybuffer';
+let ws;
+let reconnectDelay = 500;
+const maxReconnectDelay = 5000;
+let reconnectTimer = null;
 
 const send = (payload) => {
-  if (ws.readyState === WebSocket.OPEN) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(payload));
   }
 };
 
-ws.addEventListener('open', () => {
-  setStatus('connected');
-  send({ type: 'resize', cols: term.cols, rows: term.rows });
-});
+const scheduleReconnect = () => {
+  if (reconnectTimer) return;
+  setStatus('reconnecting...');
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connect();
+  }, reconnectDelay);
+  reconnectDelay = Math.min(reconnectDelay * 1.5, maxReconnectDelay);
+};
 
-ws.addEventListener('close', () => setStatus('disconnected', 'error'));
-ws.addEventListener('error', () => setStatus('connection error', 'error'));
+function connect() {
+  const socket = new WebSocket(wsProtocol + '://' + location.host + '/ws');
+  socket.binaryType = 'arraybuffer';
+  ws = socket;
 
-ws.addEventListener('message', (event) => {
-  const raw = typeof event.data === 'string'
-    ? event.data
-    : new TextDecoder().decode(event.data);
-  const message = JSON.parse(raw);
-  if (message.type === 'output') {
-    term.write(message.data);
-  } else if (message.type === 'exit') {
-    const code = message.code ?? '';
-    const signal = message.signal != null ? ' signal ' + message.signal : '';
-    term.write('\\r\\n\\u001b[38;2;255;166;81m[process exited with code ' + code + signal + ']\\u001b[0m\\r\\n');
-    setStatus('process ended', 'error');
-  }
-});
+  socket.addEventListener('open', () => {
+    setStatus('connected');
+    reconnectDelay = 500;
+    send({ type: 'resize', cols: term.cols, rows: term.rows });
+  });
+
+  socket.addEventListener('close', () => scheduleReconnect());
+  socket.addEventListener('error', () => scheduleReconnect());
+
+  socket.addEventListener('message', (event) => {
+    if (socket !== ws) return; // ignore stale sockets
+    const raw = typeof event.data === 'string'
+      ? event.data
+      : new TextDecoder().decode(event.data);
+    const message = JSON.parse(raw);
+    if (message.type === 'output') {
+      term.write(message.data);
+    } else if (message.type === 'exit') {
+      const code = message.code ?? '';
+      const signal = message.signal != null ? ' signal ' + message.signal : '';
+      term.write('\\r\\n\\u001b[38;2;255;166;81m[process exited with code ' + code + signal + ']\\u001b[0m\\r\\n');
+      setStatus('process ended', 'error');
+    }
+  });
+}
+
+connect();
 
 term.onData((data) => send({ type: 'input', data }));
 term.onResize(({ cols, rows }) => send({ type: 'resize', cols, rows }));

@@ -38,6 +38,7 @@ What it does:
 
 - Spawns the provided command inside a real PTY (via a tiny Python helper)
 - Serves a minimal ghostty-web client (HTML + JS) with live resize support
+- Auto-reconnects the browser if the connection drops and the server returns
 - Opens your browser pointed at the server (unless `--no-open`)
 
 ## Notes

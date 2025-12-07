@@ -55,3 +55,19 @@ You can produce a self-contained executable that embeds the ghostty-web client a
 bun build index.ts --compile --outfile webify
 ./webify --port 8080 -- bash
 ```
+
+## Distribution recommendations
+
+Two easy ways to ship this:
+
+- **Publish as an npm package** (works with npm, pnpm, yarn, bun):
+  - Keep `bin.webify` pointing at `index.ts` with the Bun shebang.
+  - Run `npm publish` (or `bun publish`) from the project root.
+  - Users install globally with `npm i -g web-tui` or `bun install --global web-tui` and run `webify`.
+- **Attach prebuilt binaries** for convenience:
+  - Build per target: `bun build index.ts --compile --outfile webify-linux-x64` (and similarly for other platforms via your CI matrix).
+  - Upload the artifacts (e.g., GitHub Releases) and document the Python 3 requirement for the PTY proxy.
+
+Notes when distributing:
+- The Bun-built binary does not require Bun on the target machine but still needs Python 3 available for the PTY proxy.
+- `ghostty-web` assets are bundled via the local `node_modules/ghostty-web/dist` files when you build.
